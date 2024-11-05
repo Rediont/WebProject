@@ -39,7 +39,7 @@ app.post('/login-message',async (req,res)=>{
         // Вставка даних у базу даних
         const result = await pool.query(
             'SELECT password FROM Users WHERE username = $1',
-            [username]
+            [loginName]
         );
         if (result.rows.length > 0)
         {

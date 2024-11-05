@@ -12,7 +12,6 @@
     <div class="tabs">
         <div class="tab active" onclick="showForm('login')">Вхід</div>
         <div class="tab" onclick="showForm('register')">Реєстрація</div>
-        <div class="tab"></div>
     </div>
 
     <!-- Форма для входу -->
@@ -53,7 +52,7 @@
     <div id="taskPanel" class="form">
         <h2>Обчислення площі криволінійної трапеції</h2>
         <form>
-            <div class="form-task">
+            <div class="form-group">
                 <label for="func-input">Функція</label>
                 <input type="text" id="func-input" placeholder="Введіть функцію" required>
     
@@ -91,14 +90,14 @@
     {
         const loginNameField = document.getElementById('login-name').value;
         const loginPasswordField = document.getElementById('login-password').value;
-
+        event.preventDefault();
         if(loginNameField.trim() === "" || loginPasswordField.trim() === "")
         {
             console.log("null")
         }
         else
         {
-            event.preventDefault();
+
             const response = await fetch('/login-message', {
                 method: 'POST',
                 headers: {
@@ -112,6 +111,10 @@
 
             if(response.ok)
             {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.form').forEach(form => form.classList.remove('active'));
+
+                document.getElementById('taskPanel').classList.add('active');
                 console.log(serverResponse);
             }
             else
@@ -127,14 +130,15 @@
     {
         const registerNameField = document.getElementById('register-name').value;
         const registerPasswordField = document.getElementById('register-password').value;
-
+        event.preventDefault();
+        
         if(registerNameField.trim() === "" || registerPasswordField.trim() === "")
         {
             console.log("null")
         }
         else
         {
-            event.preventDefault();
+
             const response = await fetch('/register-message', {
                 method: 'POST',
                 headers: {
@@ -153,21 +157,6 @@
     function changeErrorText(message) {
         var paragraph = document.getElementById("error-messege");
         paragraph.innerText = message;
-    }
-
-    //
-
-    async function taskPanelShow(user)
-    {
-        
-        event.preventDefault();
-        const response = await fetch('/task-panel', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ userName: user})
-        });
     }
 
 </script>

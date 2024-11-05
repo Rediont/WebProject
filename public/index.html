@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вхід та Реєстрація</title>
-    <link rel="stylesheet" href="/public/styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -19,14 +19,14 @@
         <h2>Вхід</h2>
         <form>
             <div class="form-group">
-                <label for="login-name">Email</label>
+                <label for="login-name">Name</label>
                 <input type="name" id="login-name" placeholder="Введіть ім'я користувача" required>
             </div>
             <div class="form-group">
                 <label for="login-password">Пароль</label>
                 <input type="password" id="login-password" placeholder="Введіть пароль" required>
             </div>
-            <button type="submit" class="btn">Увійти</button>
+            <button type="submit" class="btn" onclick="handleLogin()">Увійти</button>
         </form>
     </div>
 
@@ -61,6 +61,21 @@
         // Додаємо активний клас для вибраної вкладки і форми
         document.querySelector(`[onclick="showForm('${formId}')"]`).classList.add('active');
         document.getElementById(formId).classList.add('active');
+    }
+
+    function handleLogin()
+    {
+        const loginNameField = document.getElementById('login-name').value;
+        const loginPasswordField = document.getElementById('login-password').value;
+
+        if(loginNameField.trim() === "" || loginPasswordField.trim() === "")
+        {
+            console.log("null")
+        }
+        else
+        {
+            postMessage
+        }
     }
 </script>
 

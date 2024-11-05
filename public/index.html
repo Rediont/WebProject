@@ -12,6 +12,7 @@
     <div class="tabs">
         <div class="tab active" onclick="showForm('login')">Вхід</div>
         <div class="tab" onclick="showForm('register')">Реєстрація</div>
+        <div class="tab"></div>
     </div>
 
     <!-- Форма для входу -->
@@ -19,12 +20,15 @@
         <h2>Вхід</h2>
         <form>
             <div class="form-group">
-                <label for="login-name">Name</label>
+                <label for="login-name">Ім'я</label>
                 <input type="name" id="login-name" placeholder="Введіть ім'я користувача" required>
             </div>
             <div class="form-group">
                 <label for="login-password">Пароль</label>
                 <input type="password" id="login-password" placeholder="Введіть пароль" required>
+            </div>
+            <div>
+                <p id="error-messege"></p>
             </div>
             <button type="submit" class="btn" onclick="handleLogin()">Увійти</button>
         </form>
@@ -42,12 +46,32 @@
                 <label for="register-password">Пароль</label>
                 <input type="password" id="register-password" placeholder="Введіть пароль" required>
             </div>
-            <div class="form-group">
-                <label for="register-password-check">Повторення Паролю</label>
-                <input type="password" id="register-password-check" placeholder="Введіть пароль ще раз" required>
-            </div>
-            <button type="submit" class="btn">Зареєструватися</button>
+            <button type="submit" class="btn" onclick="handleRegister()">Зареєструватися</button>
         </form>
+    </div>
+
+    <div id="taskPanel" class="form">
+        <h2>Обчислення площі криволінійної трапеції</h2>
+        <form>
+            <div class="form-task">
+                <label for="func-input">Функція</label>
+                <input type="text" id="func-input" placeholder="Введіть функцію" required>
+    
+                <label for="start-range">Початок відрізку</label>
+                <input type="number" id="start-range" placeholder="Введіть початок відрізку" required>
+    
+                <label for="end-range">Кінець відрізку</label>
+                <input type="number" id="end-range" placeholder="Введіть кінець відрізку" required>
+    
+                <label for="step">Крок обчислення</label>
+                <input type="number" id="step" placeholder="Введіть крок" required>
+            </div>
+            <button type="submit" class="btn">Обчислити</button>
+        </form>
+    
+        <div>
+            <p id="result"></p>
+        </div>
     </div>
 </div>
 
@@ -63,7 +87,7 @@
         document.getElementById(formId).classList.add('active');
     }
 
-    function handleLogin()
+    async function handleLogin()
     {
         const loginNameField = document.getElementById('login-name').value;
         const loginPasswordField = document.getElementById('login-password').value;
@@ -74,9 +98,78 @@
         }
         else
         {
-            postMessage
+            event.preventDefault();
+            const response = await fetch('/login-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ loginName: loginNameField, loginPassword: loginPasswordField })
+            });
+
+            const serverResponse = await response.text();
+            console.log(serverResponse);
+
+            if(response.ok)
+            {
+                console.log(serverResponse);
+            }
+            else
+            {
+                console.log(serverResponse);
+                changeErrorText(serverResponse);
+            }
+
         }
     }
+
+    async function handleRegister()
+    {
+        const registerNameField = document.getElementById('register-name').value;
+        const registerPasswordField = document.getElementById('register-password').value;
+
+        if(registerNameField.trim() === "" || registerPasswordField.trim() === "")
+        {
+            console.log("null")
+        }
+        else
+        {
+            event.preventDefault();
+            const response = await fetch('/register-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ registerName: registerNameField, registerPassword: registerPasswordField })
+            });
+
+            const serverResponse = await response.text();
+            console.log(serverResponse);
+        }
+    }
+
+    //
+
+    function changeErrorText(message) {
+        var paragraph = document.getElementById("error-messege");
+        paragraph.innerText = message;
+    }
+
+    //
+
+    async function taskPanelShow(user)
+    {
+        
+        event.preventDefault();
+        const response = await fetch('/task-panel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userName: user})
+        });
+    }
+
 </script>
 
 </body>

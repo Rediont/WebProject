@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вхід та Реєстрація</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/public/styles.css">
 </head>
 <body>
 
@@ -19,8 +19,8 @@
         <h2>Вхід</h2>
         <form>
             <div class="form-group">
-                <label for="login-email">Email</label>
-                <input type="email" id="login-email" placeholder="Введіть email" required>
+                <label for="login-name">Email</label>
+                <input type="name" id="login-name" placeholder="Введіть ім'я користувача" required>
             </div>
             <div class="form-group">
                 <label for="login-password">Пароль</label>
@@ -39,11 +39,11 @@
                 <input type="text" id="register-name" placeholder="Введіть ім'я" required>
             </div>
             <div class="form-group">
-                <label for="register-email">Пароль</label>
-                <input type="email" id="register-password" placeholder="Введіть пароль" required>
+                <label for="register-password">Пароль</label>
+                <input type="password" id="register-password" placeholder="Введіть пароль" required>
             </div>
             <div class="form-group">
-                <label for="register-password">Повторення Паролю</label>
+                <label for="register-password-check">Повторення Паролю</label>
                 <input type="password" id="register-password-check" placeholder="Введіть пароль ще раз" required>
             </div>
             <button type="submit" class="btn">Зареєструватися</button>

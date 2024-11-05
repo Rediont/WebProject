@@ -1,37 +1,40 @@
 const http = require('http');
 const fs = require('fs');
-const mysql = require('mysql2');
+const path = require('path');
+
 
 // Визначаємо порт, на якому сервер буде працювати
 const PORT = 3000;
 
-const connection = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: 'yourpassword',
-  database: 'mydatabase'
-});
-
-connection.connect((err) => {
-  if (err) {
-    console.error('Помилка підключення до MySQL:', err);
-    return;
-  }
-  console.log('Підключено до MySQL');
-});
 
 // Створюємо сервер
 const server = http.createServer((req, res) => {
-    // Визначаємо, що робити залежно від URL
-    if (req.url === '/') {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('Вітаємо на головній сторінці!');
+    // Налаштування на обслуговування статичних файлів з папки "public"
+    if (req.url.startsWith('/public/')) {
+        const filePath = path.join(__dirname, req.url);
+        fs.readFile(filePath, (err, data) => {
+            if (err) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Файл не знайдено');
+            } else {
+                const ext = path.extname(filePath);
+                let contentType = 'text/plain';
+
+                // Встановлення правильного Content-Type для різних типів файлів
+                if (ext === '.html') contentType = 'text/html';
+                else if (ext === '.css') contentType = 'text/css';
+                else if (ext === '.js') contentType = 'application/javascript';
+
+                res.writeHead(200, { 'Content-Type': contentType });
+                res.end(data);
+            }
+        });
     } else if (req.url === '/register') {
-        // Читаємо HTML-файл для сторінки реєстрації
-        fs.readFile('index.html', (err, data) => {
+        const filePath = path.join(__dirname, 'public', 'index.html');
+        fs.readFile(filePath, (err, data) => {
             if (err) {
                 res.writeHead(500, { 'Content-Type': 'text/plain' });
-                res.end('Помилка сервера');
+                res.end('Server Error');
             } else {
                 res.writeHead(200, { 'Content-Type': 'text/html' });
                 res.end(data);
@@ -42,6 +45,7 @@ const server = http.createServer((req, res) => {
         res.end('Сторінку не знайдено.');
     }
 });
+
 
 // Запускаємо сервер
 server.listen(PORT, () => {

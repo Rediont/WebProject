@@ -3,14 +3,15 @@ const fs = require('fs');
 const express = require('express');
 
 const app = express();
-app.use(express.json());
+app.use(express.json()); // Дозволяємо парсинг JSON
 
+// Завантажуємо ключ і сертифікат
 const options = {
     key: fs.readFileSync('C:/Users/user/WP_sert/private.key'),
     cert: fs.readFileSync('C:/Users/user/WP_sert/certificate.pem')
 };
 
-
+// Функція для обчислення площі криволінійної трапеції методом прямокутників
 function calculateArea(func, start, end, step) {
     let area = 0;
     for (let x = start; x < end; x += step) {
@@ -38,6 +39,6 @@ app.post('/calculate-area', (req, res) => {
 });
 
 // Запускаємо HTTPS-сервер
-https.createServer(options, app).listen(3001, () => {
-    console.log('Сервер запущено на https://localhost:3001');
+https.createServer(options, app).listen(3002, () => {
+    console.log('Сервер запущено на https://localhost:3002');
 });

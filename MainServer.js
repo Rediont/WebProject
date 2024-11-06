@@ -31,28 +31,38 @@ app.get('/',(req,res) =>{
     res.sendFile('index.html');
 });
 
-app.post('/login-message',async (req,res)=>{
+app.post('/login-message', async (req, res) => {
     const { loginName, loginPassword } = req.body; // Отримуємо дані з запиту
     console.log("Отримане ім'я:", loginName, "Пароль:", loginPassword); // Виводимо в консоль
-    
+
     try {
-        // Вставка даних у базу даних
+        // Вибірка даних користувача з бази даних, включаючи id та пароль
         const result = await pool.query(
-            'SELECT password FROM Users WHERE username = $1',
+            'SELECT id, password FROM Users WHERE username = $1',
             [loginName]
         );
-        if (result.rows.length > 0)
-        {
-            if(loginPassword === result.rows[0].password)
+
+        if (result.rows.length > 0) 
             {
-                res.status(201).send('login succesfull')
+            const user = result.rows[0]; // Отримуємо дані користувача
+            if (loginPassword === user.password) 
+            {
+                res.status(201).json({ message: 'Login successful', userId: user.id });
+            } 
+            else 
+            {
+                res.status(401).send('Incorrect password');
             }
+        } 
+        else 
+        {
+            res.status(404).send('User not found');
         }
-    }
-    catch (err)
+    } 
+    catch (err) 
     {
-        console.error('wrong password')
-        res.status(404).send('user not found')
+        console.error('Error during login:', err);
+        res.status(500).send('Server error');
     }
 });
 

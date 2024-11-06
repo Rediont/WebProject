@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express')
 const { Pool } = require('pg');
+const axios = require('axios');
 
 const PORT = 3000;
 const app = express();
@@ -21,6 +22,11 @@ const sslOptions = {
     key: fs.readFileSync('C:/Users/user/WP_sert/private.key'),   // Ваш приватний ключ
     cert: fs.readFileSync('C:/Users/user/WP_sert/certificate.pem'),  // Ваш сертифікат
 };
+
+const httpsAgent = new https.Agent({  
+    rejectUnauthorized: false
+});
+
 
 // Експортуємо пул з'єднань
 module.exports = pool;
@@ -85,7 +91,6 @@ app.post('/register-message',async (req,res)=>{
         console.error('Error inserting user:', err);
         res.status(500).send('Server error');
     }
-
 });
 
 app.post('/task-panel',async (req,res)=>{
@@ -95,11 +100,9 @@ app.post('/task-panel',async (req,res)=>{
     try {
         // Вставка даних у базу даних
         const result = await pool.query(
-            'SELECT * FROm users WHERE username = $1',
+            'SELECT * FROM users WHERE username = $1',
             [userName]
         );
-
-
 
         res.status(201).json(newUser);   // Відправляємо відповідь клієнту
     } 
@@ -110,7 +113,57 @@ app.post('/task-panel',async (req,res)=>{
     }
 });
 
-// Запускаємо сервер
+const ServerArr = ['https://localhost:3001','https://localhost:3002'];
+const IsWorking = [false,false];
+const TaskQueue = [];
+const MAX_QUEUE = 5;
+
+async function sendTask(req, res) {
+    const { functionInput, startInput, endInput, step } = req.body;
+    const availableIndex = IsWorking.findIndex(status => !status);
+
+    console.log(req.body);
+    
+    if (availableIndex !== -1) {
+        const serverUrl = ServerArr[availableIndex];
+        IsWorking[availableIndex] = true;
+
+        try {
+            const response = await axios.post(`${serverUrl}/calculate-area`, {
+                functionInput,
+                startInput,
+                endInput,
+                step
+            }, { httpsAgent });
+
+            IsWorking[availableIndex] = false;
+            res.status(200).json(response.data);
+
+            if (TaskQueue.length > 0) {
+                const { req, res } = TaskQueue.shift();
+                sendTask(req, res);
+            }
+
+        } catch (error) {
+            console.error(`Помилка при відправці завдання на сервер ${serverUrl}:`, error);
+            IsWorking[availableIndex] = false;
+            res.status(500).send('Помилка сервера');
+        }
+    } else {
+        if (TaskQueue.length < MAX_QUEUE) {
+            TaskQueue.push({ req, res });
+            console.log('Завдання додано до черги');
+        } else {
+            res.status(503).send('Сервери зайняті, черга повна');
+        }
+    }
+}
+
+// Маршрут обробки завдання
+app.post('/task', (req, res) => {
+    sendTask(req, res);
+});
+
 server.listen(PORT, () => {
     console.log(`Сервер запущено на https://localhost:${PORT}`);
 });

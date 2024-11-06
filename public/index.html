@@ -173,9 +173,9 @@
     {
         event.preventDefault();
         const func = document.getElementById('func-input').value;
-        const rangeStart = document.getElementById().value;
-        const rangeEnd = document.getElementById().value;
-        const step = document.getElementById().value;
+        const rangeStart = document.getElementById('start-range').value;
+        const rangeEnd = document.getElementById('end-range').value;
+        const stepInput = document.getElementById('step').value;
 
         if(func.trim() === "" || rangeStart === "" || rangeEnd === "" || step === "")
         {
@@ -183,7 +183,15 @@
         }
         else
         {
-            const response = await fetch('/task')
+            const response = await fetch('/task',{
+                method:'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ functionInput: func.trim(), startInput: rangeStart, endInput:rangeEnd, step:stepInput })
+            });
+
+            console.log(response.json());
         }
 
     }

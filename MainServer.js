@@ -72,6 +72,8 @@ app.post('/login-message', async (req, res) => {
     }
 });
 
+
+
 app.post('/register-message',async (req,res)=>{
     const { registerName, registerPassword } = req.body; // Отримуємо дані з запиту
     console.log("Отримане ім'я:", registerName, "Пароль:", registerPassword); // Виводимо в консоль
@@ -93,25 +95,25 @@ app.post('/register-message',async (req,res)=>{
     }
 });
 
-app.post('/task-panel',async (req,res)=>{
-    const { userName } = req.body; // Отримуємо дані з запиту
-    console.log("Отримане ім'я:", registerName, "Пароль:", registerPassword); // Виводимо в консоль
+// app.post('/task-panel',async (req,res)=>{
+//     const { userName } = req.body; // Отримуємо дані з запиту
+//     console.log("Отримане ім'я:", registerName, "Пароль:", registerPassword); // Виводимо в консоль
 
-    try {
-        // Вставка даних у базу даних
-        const result = await pool.query(
-            'SELECT * FROM users WHERE username = $1',
-            [userName]
-        );
+//     try {
+//         // Вставка даних у базу даних
+//         const result = await pool.query(
+//             'SELECT * FROM users WHERE username = $1',
+//             [userName]
+//         );
 
-        res.status(201).json(newUser);   // Відправляємо відповідь клієнту
-    } 
-    catch (err) 
-    {
-        console.error('Error inserting user:', err);
-        res.status(500).send('Server error');
-    }
-});
+//         res.status(201).json(newUser);   // Відправляємо відповідь клієнту
+//     } 
+//     catch (err) 
+//     {
+//         console.error('Error inserting user:', err);
+//         res.status(500).send('Server error');
+//     }
+// });
 
 const ServerArr = ['https://localhost:3001','https://localhost:3002'];
 const IsWorking = [false,false];
@@ -119,7 +121,7 @@ const TaskQueue = [];
 const MAX_QUEUE = 5;
 
 async function sendTask(req, res) {
-    const { functionInput, startInput, endInput, step } = req.body;
+    const {userId, functionInput, startInput, endInput, step } = req.body;
     const availableIndex = IsWorking.findIndex(status => !status);
 
     console.log(req.body);
@@ -130,6 +132,7 @@ async function sendTask(req, res) {
 
         try {
             const response = await axios.post(`${serverUrl}/calculate-area`, {
+                userId,
                 functionInput,
                 startInput,
                 endInput,
@@ -138,6 +141,8 @@ async function sendTask(req, res) {
 
             IsWorking[availableIndex] = false;
             res.status(200).json(response.data);
+            console.log(response.data.result)
+
 
             if (TaskQueue.length > 0) {
                 const { req, res } = TaskQueue.shift();
@@ -161,7 +166,25 @@ async function sendTask(req, res) {
 
 // Маршрут обробки завдання
 app.post('/task', (req, res) => {
-    sendTask(req, res);
+    sendTask(req, res).then(response => {
+        res.send(response);
+    })
+});
+
+app.post('/update-task-list', async(req,res)=>{
+    const userId = req.body.userId;
+    try{
+        const result = await pool.query(
+            'SELECT user_id,task_data FROM tasks WHERE user_id = $1',
+            [userId]
+        );
+        
+        res.json(result.rows);
+    }
+    catch(error){
+        console.error('Error fetching tasks:', error);
+        res.status(500).send("помилка сервера")
+    }
 });
 
 server.listen(PORT, () => {

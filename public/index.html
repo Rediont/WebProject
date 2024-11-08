@@ -5,10 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вхід та Реєстрація</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .container 
+        {
+            background-color: white;
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .container.logged-in {
+            width: 100%;
+            height: auto;
+            max-width: 1000px;
+        }
+
+        .flex-container
+        {
+            justify-content: stretch;
+            gap: 5px;
+            display: flex;
+        }
+    </style>
 </head>
 <body>
 
-<div class="container">
+<div class="container" id = "container">
     <div class="tabs">
         <div class="tab active" onclick="showForm('login')">Вхід</div>
         <div class="tab" onclick="showForm('register')">Реєстрація</div>
@@ -34,49 +59,69 @@
     </div>
 
     <!-- Форма для реєстрації -->
-    <div id="register" class="form">
-        <h2>Реєстрація</h2>
-        <form>
-            <div class="form-group">
-                <label for="register-name">Ім'я</label>
-                <input type="text" id="register-name" placeholder="Введіть ім'я" required>
-            </div>
-            <div class="form-group">
-                <label for="register-password">Пароль</label>
-                <input type="password" id="register-password" placeholder="Введіть пароль" required>
-            </div>
-            <button type="submit" class="btn" onclick="handleRegister()">Зареєструватися</button>
-        </form>
-    </div>
+        <div id="register" class="form">
+            <h2>Реєстрація</h2>
+            <form>
+                <div class="form-group">
+                    <label for="register-name">Ім'я</label>
+                    <input type="text" id="register-name" placeholder="Введіть ім'я" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Пароль</label>
+                    <input type="password" id="register-password" placeholder="Введіть пароль" required>
+                </div>
+                <button type="submit" class="btn" onclick="handleRegister()">Зареєструватися</button>
+            </form>
+        </div>
 
-    <div id="taskPanel" class="form">
-        <h2>Обчислення площі криволінійної трапеції</h2>
-        <form>
-            <div class="form-group">
-                <label for="func-input">Функція</label>
-                <input type="text" id="func-input" placeholder="Введіть функцію" required>
+        
+    <div class="flex-container">
+        <div id="taskPanel" class="form">
+            <h2>Обчислення площі криволінійної трапеції</h2>
+            <form>
+                <div class="form-group">
+                    <label for="func-input">Функція</label>
+                    <input type="text" id="func-input" placeholder="Введіть функцію" required>
     
-                <label for="start-range">Початок відрізку</label>
-                <input type="number" id="start-range" placeholder="Введіть початок відрізку" required>
+                    <label for="start-range">Початок відрізку</label>
+                    <input type="number" id="start-range" placeholder="Введіть початок відрізку" required>
     
-                <label for="end-range">Кінець відрізку</label>
-                <input type="number" id="end-range" placeholder="Введіть кінець відрізку" required>
+                    <label for="end-range">Кінець відрізку</label>
+                    <input type="number" id="end-range" placeholder="Введіть кінець відрізку" required>
     
-                <label for="step">Крок обчислення</label>
-                <input type="number" id="step" step="any" placeholder="Введіть крок" required>
+                    <label for="step">Крок обчислення</label>
+                    <input type="number" id="step" step="any" placeholder="Введіть крок" required>
+                </div>
+                <button type="submit" class="btn" onclick="SendTask()">Обчислити</button>
+            </form>
+    
+            <div>
+                <p id="result"></p>
             </div>
-            <button type="submit" class="btn" onclick="SendTask()">Обчислити</button>
-        </form>
-    
-        <div>
-            <p id="result"></p>
+        </div>
+
+        <div class="column-forms">
+            <div id="progressPanel" class="progress-form">
+                <h3>Прогрес</h3>
+                <p id="progressStatus">Обчислення не розпочато</p>
+                <progress id="progressBar" value="0" max="100"></progress>
+            </div>
+
+    <!-- Блок завдань -->
+            <div id="taskListPanel" class="task-list-form">
+                <h3>Список завдань</h3>
+                <ul id="taskList">
+                <!-- Список завдань буде додаватись тут -->
+                </ul>
+                <button id="task-list-button" onclick="updateList()" class="btn">Оновити список завдань</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
 
-    let currentUser = '';
+    let currentUser = 0;
     // Функція для перемикання між формами
     function showForm(formId) {
         // Видаляємо активний клас у всіх вкладках і формах
@@ -115,9 +160,13 @@
             {
                 document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
                 document.querySelectorAll('.form').forEach(form => form.classList.remove('active'));
+                document.getElementById('progressPanel').style.display = 'block';
+                document.getElementById('taskListPanel').style.display = 'block';
+            
 
+                document.getElementById('container').classList.add('logged-in')
                 document.getElementById('taskPanel').classList.add('active');
-                currentUser = serverResponse.userId;
+                currentUser = Number(serverResponse.userId);
                 console.log(currentUser);
             }
             else
@@ -157,9 +206,14 @@
             {
                 document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
                 document.querySelectorAll('.form').forEach(form => form.classList.remove('active'));
+                document.getElementById('progressPanel').style.display = 'block';
+                document.getElementById('taskListPanel').style.display = 'block';
+            
 
+                document.getElementById('container').classList.add('logged-in')
                 document.getElementById('taskPanel').classList.add('active');
-                console.log(serverResponse);
+                currentUser = serverResponse.userId;
+                console.log(currentUser);
             }
             else
             {
@@ -177,6 +231,8 @@
         const rangeEnd = document.getElementById('end-range').value;
         const stepInput = document.getElementById('step').value;
 
+        updateProgress(0);
+
         if(func.trim() === "" || rangeStart === "" || rangeEnd === "" || step === "")
         {
             console.log("null")
@@ -188,12 +244,61 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ functionInput: func.trim(), startInput: rangeStart, endInput:rangeEnd, step:stepInput })
+                body: JSON.stringify({userId: currentUser, functionInput: func.trim(), startInput: rangeStart, endInput:rangeEnd, step:stepInput })
             });
 
-            console.log(response.json());
-        }
+            const data = await response.json();
+            console.log(data.result);
 
+            updateProgress(100);
+        }
+    }
+
+    let taskIndex = 1;
+
+    function addTaskToList(func, start, end, step, result) 
+    {
+        const taskList = document.getElementById('taskList');
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <strong>Завдання ${taskIndex++}</strong><br>
+            Формула: ${func}<br>
+            Початок відрізку: ${start}<br>
+            Кінець відрізку: ${end}<br>
+            Крок: ${step}<br>
+            Результат: ${result}
+        `;
+        taskList.appendChild(li);
+    }
+
+    async function updateList()
+    {
+        taskIndex = 1;
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = '';
+        const response = await fetch('/update-task-list',{
+            method:'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({userId: currentUser})
+        });
+        if (response.ok) {
+            const data = await response.json();
+            data.forEach((task,index)=>{
+                const {user_id, task_data} = task;
+                const {functionData, start, end, step, result} = task_data;
+                addTaskToList(functionData, start, end, step, result);
+            });
+        }
+    }
+
+    function updateProgress(value) 
+    {
+        const progressBar = document.getElementById('progressBar');
+        const progressStatus = document.getElementById('progressStatus');
+        progressBar.value = value;
+        progressStatus.innerText = `Прогрес: ${value}%`;
     }
 
     function changeErrorText(message) {

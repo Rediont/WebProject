@@ -1,9 +1,12 @@
 const https = require('https');
 const fs = require('fs');
 const express = require('express');
+const { Pool } = require('pg');
 
 const app = express();
 app.use(express.json());
+
+
 
 const pool = new Pool({
     user: 'postgres',      // Ваше ім'я користувача
@@ -35,8 +38,8 @@ function calculateArea(func, start, end, step) {
 }
 
 // Маршрут для отримання завдання на обчислення
-app.post('/calculate-area', (req, res) => {
-    let { functionInput, startInput, endInput, step } = req.body;
+app.post('/calculate-area',async (req, res) => {
+    let {userId, functionInput, startInput, endInput, step } = req.body;
 
     startInput = parseFloat(startInput);
     endInput = parseFloat(endInput);
@@ -50,6 +53,22 @@ app.post('/calculate-area', (req, res) => {
         const area = calculateArea(functionInput, startInput, endInput, step);
         console.log(area);
         res.status(201).json({ message: 'success', result: area });
+
+        const taskJson = JSON.stringify({functionData: functionInput,start: startInput, end: endInput, step: step, result: area});
+
+        try {
+            // Вставка даних у базу даних
+            const result = await pool.query(
+                'INSERT INTO tasks (user_id, task_data) VALUES ($1, $2)',
+                [userId,taskJson]
+            );
+        } 
+        catch (err) 
+        {
+            console.error('Error inserting task:', err);
+            res.status(500).send('Server error');
+        }
+
     } catch (error) {
         console.log(error)
         res.status(500).json({ error: "Помилка обчислення: перевірте правильність функції" });
@@ -58,6 +77,6 @@ app.post('/calculate-area', (req, res) => {
 
 
 // Запускаємо HTTPS-сервер
-https.createServer(options, app).listen(3001, () => {
+https.createServer(options, app).listen(3002, () => {
     console.log('Сервер запущено на https://localhost:3002');
 });

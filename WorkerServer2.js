@@ -1,12 +1,11 @@
 const https = require('https');
+const WebSocket = require('ws');
 const fs = require('fs');
 const express = require('express');
 const { Pool } = require('pg');
 
 const app = express();
 app.use(express.json());
-
-
 
 const pool = new Pool({
     user: 'postgres',      // Ваше ім'я користувача
@@ -22,61 +21,75 @@ const options = {
     key: fs.readFileSync('C:/Users/user/WP_sert/private.key'),
     cert: fs.readFileSync('C:/Users/user/WP_sert/certificate.pem')
 };
-
 const httpsAgent = new https.Agent({  
     ca: fs.readFileSync('C:/Users/user/WP_sert/certificate.pem')
 });
 
-function calculateArea(func, start, end, step) {
+const server = https.createServer(options, app);
+const wss = new WebSocket.Server({ server , agent: httpsAgent});
+
+
+// Маршрут для отримання завдання на обчислення
+
+function calculateArea(func, start, end, step, ws) {
     let area = 0;
+    let progress = 0;
+
+    // Обчислення значення на кожному кроці
     for (let x = start; x < end; x += step) {
-        // Обчислюємо значення функції у точці x
-        const y = eval(func.replace(/x/g, x)); // Замінюємо 'x' у функції на значення
+        const y = eval(func.replace(/x/g, x)); // Виконання функції
         area += y * step;
+
+        // Оновлення прогресу
+        progress = ((x - start) / (end - start)) * 100;
+        ws.send(JSON.stringify({ type: 'progress', progress: Math.round(progress) }));
     }
+    ws.send(JSON.stringify({ type: 'taskComplete', result: area }));
     return area;
 }
 
-// Маршрут для отримання завдання на обчислення
-app.post('/calculate-area',async (req, res) => {
-    let {userId, functionInput, startInput, endInput, step } = req.body;
+wss.on('connection', (ws) => {
+    console.log('Worker server connected');
 
-    startInput = parseFloat(startInput);
-    endInput = parseFloat(endInput);
-    step = parseFloat(step);
+    ws.on('message', async (message) => {
+        const data = JSON.parse(message);
+        console.log(data);
+        if (data.type === 'taskRequest') {
+            let { userId, functionInput, startInput, endInput, step } = data.taskData;
 
-    if (!functionInput || isNaN(startInput) || isNaN(endInput) || isNaN(step)) {
-        return res.status(400).json({ error: "Відсутні необхідні параметри або невірний формат" });
-    }
+            startInput = parseFloat(startInput);
+            endInput = parseFloat(endInput);
+            step = parseFloat(step);
 
-    try {
-        const area = calculateArea(functionInput, startInput, endInput, step);
-        console.log(area);
-        res.status(201).json({ message: 'success', result: area });
+            if (!functionInput || isNaN(startInput) || isNaN(endInput) || isNaN(step)) {
+                return ws.send(JSON.stringify({ error: "Invalid input parameters" }));
+            }
 
-        const taskJson = JSON.stringify({functionData: functionInput,start: startInput, end: endInput, step: step, result: area});
+            try {
+                const area = calculateArea(functionInput, startInput, endInput, step, ws);
 
-        try {
-            // Вставка даних у базу даних
-            const result = await pool.query(
-                'INSERT INTO tasks (user_id, task_data) VALUES ($1, $2)',
-                [userId,taskJson]
-            );
-        } 
-        catch (err) 
-        {
-            console.error('Error inserting task:', err);
-            res.status(500).send('Server error');
+                try {
+                    // Вставка даних у базу даних
+                    const taskJson = JSON.stringify({functionData: functionInput,start: startInput, end: endInput, step: step, result: area});
+                    const result = await pool.query(
+                    'INSERT INTO tasks (user_id, task_data) VALUES ($1, $2)',
+                    [userId,taskJson]
+                    );
+                } 
+                catch (err) 
+                {
+                    console.error('Error inserting task:', err);
+                    res.status(500).send('Server error');
+                }
+
+            } catch (error) {
+                console.error('Calculation error:', error);
+                ws.send(JSON.stringify({ error: 'Error in calculation' }));
+            }
         }
-
-    } catch (error) {
-        console.log(error)
-        res.status(500).json({ error: "Помилка обчислення: перевірте правильність функції" });
-    }
+    });
 });
 
-
-// Запускаємо HTTPS-сервер
-https.createServer(options, app).listen(3002, () => {
-    console.log('Сервер запущено на https://localhost:3002');
+server.listen(3002, () => {
+    console.log(`Сервер запущено на https://localhost:3002`);
 });

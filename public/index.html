@@ -20,7 +20,7 @@
         .container.logged-in {
             width: 100%;
             height: auto;
-            max-width: 1000px;
+            max-width: 1400px;
         }
 
         .flex-container
@@ -105,6 +105,11 @@
                 <h3>Прогрес</h3>
                 <p id="progressStatus">Обчислення не розпочато</p>
                 <progress id="progressBar" value="0" max="100"></progress>
+                <div class="button-group">
+                    <button id="stopButton" onclick="stopTask()" class="btn">Зупинити</button>
+                    <button id="resumeButton" onclick="resumeTask()" class="btn">Відновити</button>
+                    <button id="abortButton" onclick="abortTask()" class="btn">Перервати</button>
+                </div>
             </div>
 
     <!-- Блок завдань -->
@@ -120,6 +125,23 @@
 </div>
 
 <script>
+
+    const socket = new WebSocket('wss://localhost:3000'); // Підключення до головного сервера
+
+    socket.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+
+        if(data.type === 'taskComplete'){
+            console.log(data);
+        }
+        if (data.progress !== undefined) {
+            updateProgress(data.progress)
+        }
+
+        if (data.message) {
+            alert(data.message);
+        }
+    };
 
     let currentUser = 0;
     // Функція для перемикання між формами
@@ -144,7 +166,6 @@
         }
         else
         {
-
             const response = await fetch('/login-message', {
                 method: 'POST',
                 headers: {
@@ -163,7 +184,6 @@
                 document.getElementById('progressPanel').style.display = 'block';
                 document.getElementById('taskListPanel').style.display = 'block';
             
-
                 document.getElementById('container').classList.add('logged-in')
                 document.getElementById('taskPanel').classList.add('active');
                 currentUser = Number(serverResponse.userId);
@@ -190,7 +210,6 @@
         }
         else
         {
-
             const response = await fetch('/register-message', {
                 method: 'POST',
                 headers: {
@@ -208,7 +227,6 @@
                 document.querySelectorAll('.form').forEach(form => form.classList.remove('active'));
                 document.getElementById('progressPanel').style.display = 'block';
                 document.getElementById('taskListPanel').style.display = 'block';
-            
 
                 document.getElementById('container').classList.add('logged-in')
                 document.getElementById('taskPanel').classList.add('active');
@@ -223,34 +241,43 @@
         }
     }
 
-    async function SendTask()
-    {
+    async function SendTask() {
         event.preventDefault();
         const func = document.getElementById('func-input').value;
         const rangeStart = document.getElementById('start-range').value;
         const rangeEnd = document.getElementById('end-range').value;
         const stepInput = document.getElementById('step').value;
 
-        updateProgress(0);
-
-        if(func.trim() === "" || rangeStart === "" || rangeEnd === "" || step === "")
-        {
-            console.log("null")
+        
+        if (rangeStart < -100 || rangeStart > 100) {
+            alert('Початок відрізку має бути в межах від -100 до 100.');
+            return false;
         }
-        else
-        {
-            const response = await fetch('/task',{
-                method:'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({userId: currentUser, functionInput: func.trim(), startInput: rangeStart, endInput:rangeEnd, step:stepInput })
-            });
 
-            const data = await response.json();
-            console.log(data.result);
+        if (rangeEnd < -100 || rangeEnd > 100) {
+            alert('Кінець відрізку має бути в межах від -100 до 100.');
+            return false;
+        }
 
-            updateProgress(100);
+        if (stepInput <= 0 || stepInput > Math.abs(rangeStart - rangeEnd)) {
+            alert('Крок обчислення має бути більше 0 і не перевищувати довжину відрізку.');
+            return false;
+        }
+
+
+        if (func.trim() === "" || rangeStart === "" || rangeEnd === "" || stepInput === "") {
+            console.log("Error");
+        }
+        else {
+            // Відправляємо запит до головного сервера через WebSocket
+            const taskData = {
+                userId: currentUser,
+                functionInput: func.trim(),
+                startInput: rangeStart,
+                endInput: rangeEnd,
+                step: stepInput
+            };
+            socket.send(JSON.stringify({ type: 'taskRequest', taskData }));
         }
     }
 
@@ -304,6 +331,45 @@
     function changeErrorText(message) {
         var paragraph = document.getElementById("error-messege");
         paragraph.innerText = message;
+    }
+
+    function stopTask() {
+        if (currentUser !== 0) {
+            socket.send(JSON.stringify({
+                type: 'taskControl',
+                action: 'stop',
+                userId: currentUser
+            }));
+            console.log('Task stopped');
+        } else {
+            console.log('No user or task associated');
+        }
+    }
+
+    function resumeTask() {
+        if (currentUser !== 0) {
+            socket.send(JSON.stringify({
+                type: 'taskControl',
+                action: 'resume',
+                userId: currentUser
+            }));
+            console.log('Task resumed');
+        } else {
+            console.log('No user or task associated');
+        }
+    }
+
+    function abortTask() {
+        if (currentUser !== 0) {
+            socket.send(JSON.stringify({
+                type: 'taskControl',
+                action: 'abort',
+                userId: currentUser
+            }));
+            console.log('Task aborted');
+        } else {
+            console.log('No user or task associated');
+        }
     }
 
 </script>

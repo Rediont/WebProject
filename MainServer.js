@@ -1,4 +1,5 @@
 const https = require('https');
+const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 const express = require('express')
@@ -24,14 +25,15 @@ const sslOptions = {
 };
 
 const httpsAgent = new https.Agent({  
+    ca: fs.readFileSync('C:/Users/user/WP_sert/certificate.pem'),
     rejectUnauthorized: false
 });
 
-
 // Експортуємо пул з'єднань
 module.exports = pool;
-
+//зв'язки
 const server = https.createServer(sslOptions, app);
+const wss = new WebSocket.Server({ server , agent: httpsAgent});
 
 app.get('/',(req,res) =>{
     res.sendFile('index.html');
@@ -72,8 +74,6 @@ app.post('/login-message', async (req, res) => {
     }
 });
 
-
-
 app.post('/register-message',async (req,res)=>{
     const { registerName, registerPassword } = req.body; // Отримуємо дані з запиту
     console.log("Отримане ім'я:", registerName, "Пароль:", registerPassword); // Виводимо в консоль
@@ -95,81 +95,105 @@ app.post('/register-message',async (req,res)=>{
     }
 });
 
-// app.post('/task-panel',async (req,res)=>{
-//     const { userName } = req.body; // Отримуємо дані з запиту
-//     console.log("Отримане ім'я:", registerName, "Пароль:", registerPassword); // Виводимо в консоль
-
-//     try {
-//         // Вставка даних у базу даних
-//         const result = await pool.query(
-//             'SELECT * FROM users WHERE username = $1',
-//             [userName]
-//         );
-
-//         res.status(201).json(newUser);   // Відправляємо відповідь клієнту
-//     } 
-//     catch (err) 
-//     {
-//         console.error('Error inserting user:', err);
-//         res.status(500).send('Server error');
-//     }
-// });
-
-const ServerArr = ['https://localhost:3001','https://localhost:3002'];
+const ServerArr = ['wss://localhost:3001','wss://localhost:3002'];
 const IsWorking = [false,false];
 const TaskQueue = [];
 const MAX_QUEUE = 5;
 
-async function sendTask(req, res) {
-    const {userId, functionInput, startInput, endInput, step } = req.body;
-    const availableIndex = IsWorking.findIndex(status => !status);
+let clients = [];
 
-    console.log(req.body);
-    
-    if (availableIndex !== -1) {
-        const serverUrl = ServerArr[availableIndex];
-        IsWorking[availableIndex] = true;
+wss.on('connection', (ws) => {
+    console.log('Client connected');
+    clients.push(ws);
 
-        try {
-            const response = await axios.post(`${serverUrl}/calculate-area`, {
-                userId,
-                functionInput,
-                startInput,
-                endInput,
-                step
-            }, { httpsAgent });
+    ws.on('message', async (message) => {
+        const data = JSON.parse(message);
+        console.log(data);
 
-            IsWorking[availableIndex] = false;
-            res.status(200).json(response.data);
-            console.log(response.data.result)
+        const availableIndex = IsWorking.findIndex(status => !status);
 
+        if (data.type === 'taskRequest') {
+            const { userId, functionInput, startInput, endInput, step } = data.taskData;
 
-            if (TaskQueue.length > 0) {
-                const { req, res } = TaskQueue.shift();
-                sendTask(req, res);
+            if (availableIndex !== -1) {
+                IsWorking[availableIndex] = true;
+                const serverUrl = ServerArr[availableIndex];
+
+                const workerWs = new WebSocket(serverUrl, { agent: httpsAgent });
+
+                workerWs.on('open', () => {
+                    workerWs.send(JSON.stringify({
+                        type: 'taskRequest',
+                        taskData: { userId, functionInput, startInput, endInput, step }
+                    }));
+                });
+
+                workerWs.on('message',async (response) => {
+                    const workerData = JSON.parse(response);
+                    console.log(workerData);
+                    if (workerData.type === 'progress') {
+                        ws.send(JSON.stringify({
+                            type: workerData.type,
+                            progress: workerData.progress
+                        }));
+                    } else {
+                        IsWorking[availableIndex] = false;
+                        ws.send(JSON.stringify({
+                            type: 'taskComplete',
+                            result: workerData.result,
+                            progress: 100
+                        }));
+
+                        try{
+                            const taskJson = JSON.stringify({functionData: workerData.funcRes,start: workerData.startRes, end: workerData.endRes, step: workerData.stepRes, result: workerData.result});
+                            const result = await pool.query(
+                            'INSERT INTO tasks (user_id, task_data) VALUES ($1, $2)',
+                            [userId,taskJson]
+                            );
+                        }
+                        catch(error){
+                            console.error('Error inserting task:', error);
+                            res.status(500).send('Server error');
+                        }
+                    }
+                });
+
+                workerWs.on('close', () => {
+                    console.log('Worker server connection closed');
+                });
+
+                ws.taskWorker = workerWs; // Зберігаємо WebSocket робочого сервера
+            } else {
+                if (TaskQueue.length < MAX_QUEUE) {
+                    TaskQueue.push({ ws, taskData: { userId, functionInput, startInput, endInput, step } });
+                    console.log('Task added to queue');
+                } else {
+                    ws.send(JSON.stringify({ type: 'queueFull', message: 'Task queue is full' }));
+                }
             }
+        } else if (data.type === 'taskControl') {
+            const { userId, action } = data;
 
-        } catch (error) {
-            console.error(`Помилка при відправці завдання на сервер ${serverUrl}:`, error);
-            IsWorking[availableIndex] = false;
-            res.status(500).send('Помилка сервера');
+            if (ws.taskWorker && ws.taskWorker.readyState === WebSocket.OPEN) {
+                ws.taskWorker.send(JSON.stringify({
+                    type: 'taskControl',
+                    action,
+                    userId
+                }));
+            } else {
+                ws.send(JSON.stringify({ type: 'error', message: 'No active task to control' }));
+            }
         }
-    } else {
-        if (TaskQueue.length < MAX_QUEUE) {
-            TaskQueue.push({ req, res });
-            console.log('Завдання додано до черги');
-        } else {
-            res.status(503).send('Сервери зайняті, черга повна');
-        }
-    }
-}
+    });
 
-// Маршрут обробки завдання
-app.post('/task', (req, res) => {
-    sendTask(req, res).then(response => {
-        res.send(response);
-    })
+    ws.on('close', () => {
+        clients = clients.filter(client => client !== ws);
+        if (ws.taskWorker) {
+            ws.taskWorker.close();
+        }
+    });
 });
+
 
 app.post('/update-task-list', async(req,res)=>{
     const userId = req.body.userId;
@@ -186,6 +210,8 @@ app.post('/update-task-list', async(req,res)=>{
         res.status(500).send("помилка сервера")
     }
 });
+
+
 
 server.listen(PORT, () => {
     console.log(`Сервер запущено на https://localhost:${PORT}`);

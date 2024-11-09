@@ -102,6 +102,8 @@ const MAX_QUEUE = 5;
 
 let clients = [];
 
+let currentServerIndex = 0;
+
 wss.on('connection', (ws) => {
     console.log('Client connected');
     clients.push(ws);
@@ -110,10 +112,11 @@ wss.on('connection', (ws) => {
         const data = JSON.parse(message);
         console.log(data);
 
-        const availableIndex = IsWorking.findIndex(status => !status);
-
         if (data.type === 'taskRequest') {
             const { userId, functionInput, startInput, endInput, step } = data.taskData;
+
+            // Знаходимо вільний сервер
+            const availableIndex = IsWorking.findIndex(status => !status);
 
             if (availableIndex !== -1) {
                 IsWorking[availableIndex] = true;
@@ -128,9 +131,10 @@ wss.on('connection', (ws) => {
                     }));
                 });
 
-                workerWs.on('message',async (response) => {
+                workerWs.on('message', async (response) => {
                     const workerData = JSON.parse(response);
                     console.log(workerData);
+
                     if (workerData.type === 'progress') {
                         ws.send(JSON.stringify({
                             type: workerData.type,
@@ -144,14 +148,19 @@ wss.on('connection', (ws) => {
                             progress: 100
                         }));
 
-                        try{
-                            const taskJson = JSON.stringify({functionData: workerData.funcRes,start: workerData.startRes, end: workerData.endRes, step: workerData.stepRes, result: workerData.result});
+                        try {
+                            const taskJson = JSON.stringify({
+                                functionData: workerData.funcRes,
+                                start: workerData.startRes,
+                                end: workerData.endRes,
+                                step: workerData.stepRes,
+                                result: workerData.result
+                            });
                             const result = await pool.query(
-                            'INSERT INTO tasks (user_id, task_data) VALUES ($1, $2)',
-                            [userId,taskJson]
+                                'INSERT INTO tasks (user_id, task_data) VALUES ($1, $2)',
+                                [userId, taskJson]
                             );
-                        }
-                        catch(error){
+                        } catch (error) {
                             console.error('Error inserting task:', error);
                             res.status(500).send('Server error');
                         }
@@ -171,6 +180,9 @@ wss.on('connection', (ws) => {
                     ws.send(JSON.stringify({ type: 'queueFull', message: 'Task queue is full' }));
                 }
             }
+
+            // Крок для круглого обертання
+            currentServerIndex = (currentServerIndex + 1) % ServerArr.length;
         } else if (data.type === 'taskControl') {
             const { userId, action } = data;
 

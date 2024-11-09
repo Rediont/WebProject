@@ -113,7 +113,6 @@ wss.on('connection', (ws) => {
 
             try {
                 const area = await calculateArea(functionInput, startInput, endInput, step, ws);
-                console.log(isCancelled);
                 if(isCancelled === true){
                     console.log('abort')
                     ws.send(JSON.stringify({ error: 'Abort' }));
@@ -137,6 +136,6 @@ wss.on('connection', (ws) => {
     });
 });
 
-server.listen(3001, () => {
-    console.log(`Сервер запущено на https://localhost:3001`);
+server.listen(3002, () => {
+    console.log(`Сервер запущено на https://localhost:3002`);
 });

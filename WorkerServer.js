@@ -113,9 +113,7 @@ wss.on('connection', (ws) => {
 
             try {
                 const area = await calculateArea(functionInput, startInput, endInput, step, ws);
-                console.log(isCancelled);
                 if(isCancelled === true){
-                    console.log('abort')
                     ws.send(JSON.stringify({ error: 'Abort' }));
                 } 
             } catch (error) {

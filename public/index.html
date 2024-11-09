@@ -4,11 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вхід та Реєстрація</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .container 
+        {
+            background-color: white;
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .container.logged-in {
+            width: 100%;
+            height: auto;
+            max-width: 1400px;
+        }
+
+        .flex-container
+        {
+            justify-content: stretch;
+            gap: 5px;
+            display: flex;
+        }
+    </style>
 </head>
 <body>
 
-<div class="container">
+<div class="container" id = "container">
     <div class="tabs">
         <div class="tab active" onclick="showForm('login')">Вхід</div>
         <div class="tab" onclick="showForm('register')">Реєстрація</div>
@@ -19,39 +44,106 @@
         <h2>Вхід</h2>
         <form>
             <div class="form-group">
-                <label for="login-email">Email</label>
-                <input type="email" id="login-email" placeholder="Введіть email" required>
+                <label for="login-name">Ім'я</label>
+                <input type="name" id="login-name" placeholder="Введіть ім'я користувача" required>
             </div>
             <div class="form-group">
                 <label for="login-password">Пароль</label>
                 <input type="password" id="login-password" placeholder="Введіть пароль" required>
             </div>
-            <button type="submit" class="btn">Увійти</button>
+            <div>
+                <p id="error-messege"></p>
+            </div>
+            <button type="submit" class="btn" onclick="handleLogin()">Увійти</button>
         </form>
     </div>
 
     <!-- Форма для реєстрації -->
-    <div id="register" class="form">
-        <h2>Реєстрація</h2>
-        <form>
-            <div class="form-group">
-                <label for="register-name">Ім'я</label>
-                <input type="text" id="register-name" placeholder="Введіть ім'я" required>
+        <div id="register" class="form">
+            <h2>Реєстрація</h2>
+            <form>
+                <div class="form-group">
+                    <label for="register-name">Ім'я</label>
+                    <input type="text" id="register-name" placeholder="Введіть ім'я" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Пароль</label>
+                    <input type="password" id="register-password" placeholder="Введіть пароль" required>
+                </div>
+                <button type="submit" class="btn" onclick="handleRegister()">Зареєструватися</button>
+            </form>
+        </div>
+
+        
+    <div class="flex-container">
+        <div id="taskPanel" class="form">
+            <h2>Обчислення площі криволінійної трапеції</h2>
+            <form>
+                <div class="form-group">
+                    <label for="func-input">Функція</label>
+                    <input type="text" id="func-input" placeholder="Введіть функцію" required>
+    
+                    <label for="start-range">Початок відрізку</label>
+                    <input type="number" id="start-range" placeholder="Введіть початок відрізку" required>
+    
+                    <label for="end-range">Кінець відрізку</label>
+                    <input type="number" id="end-range" placeholder="Введіть кінець відрізку" required>
+    
+                    <label for="step">Крок обчислення</label>
+                    <input type="number" id="step" step="any" placeholder="Введіть крок" required>
+                </div>
+                <button type="submit" class="btn" onclick="SendTask()">Обчислити</button>
+            </form>
+    
+            <div>
+                <p id="result"></p>
             </div>
-            <div class="form-group">
-                <label for="register-email">Пароль</label>
-                <input type="email" id="register-password" placeholder="Введіть пароль" required>
+        </div>
+
+        <div class="column-forms">
+            <div id="progressPanel" class="progress-form">
+                <h3>Прогрес</h3>
+                <p id="progressStatus">Обчислення не розпочато</p>
+                <progress id="progressBar" value="0" max="100"></progress>
+                <div class="button-group">
+                    <button id="stopButton" onclick="stopTask()" class="btn">Зупинити</button>
+                    <button id="resumeButton" onclick="resumeTask()" class="btn">Відновити</button>
+                    <button id="abortButton" onclick="abortTask()" class="btn">Перервати</button>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="register-password">Повторення Паролю</label>
-                <input type="password" id="register-password-check" placeholder="Введіть пароль ще раз" required>
+
+    <!-- Блок завдань -->
+            <div id="taskListPanel" class="task-list-form">
+                <h3>Список завдань</h3>
+                <ul id="taskList">
+                <!-- Список завдань буде додаватись тут -->
+                </ul>
+                <button id="task-list-button" onclick="updateList()" class="btn">Оновити список завдань</button>
             </div>
-            <button type="submit" class="btn">Зареєструватися</button>
-        </form>
+        </div>
     </div>
 </div>
 
 <script>
+
+    const socket = new WebSocket('wss://localhost:3000'); // Підключення до головного сервера
+
+    socket.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+
+        if(data.type === 'taskComplete'){
+            console.log(data);
+        }
+        if (data.progress !== undefined) {
+            updateProgress(data.progress)
+        }
+
+        if (data.message) {
+            alert(data.message);
+        }
+    };
+
+    let currentUser = 0;
     // Функція для перемикання між формами
     function showForm(formId) {
         // Видаляємо активний клас у всіх вкладках і формах
@@ -62,6 +154,224 @@
         document.querySelector(`[onclick="showForm('${formId}')"]`).classList.add('active');
         document.getElementById(formId).classList.add('active');
     }
+
+    async function handleLogin()
+    {
+        const loginNameField = document.getElementById('login-name').value;
+        const loginPasswordField = document.getElementById('login-password').value;
+        event.preventDefault();
+        if(loginNameField.trim() === "" || loginPasswordField.trim() === "")
+        {
+            console.log("null")
+        }
+        else
+        {
+            const response = await fetch('/login-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ loginName: loginNameField, loginPassword: loginPasswordField })
+            });
+
+            const serverResponse = await response.json();
+            console.log(serverResponse);
+
+            if(response.ok)
+            {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.form').forEach(form => form.classList.remove('active'));
+                document.getElementById('progressPanel').style.display = 'block';
+                document.getElementById('taskListPanel').style.display = 'block';
+            
+                document.getElementById('container').classList.add('logged-in')
+                document.getElementById('taskPanel').classList.add('active');
+                currentUser = Number(serverResponse.userId);
+                console.log(currentUser);
+            }
+            else
+            {
+                console.log(serverResponse);
+                changeErrorText(serverResponse);
+            }
+
+        }
+    }
+
+    async function handleRegister()
+    {
+        const registerNameField = document.getElementById('register-name').value;
+        const registerPasswordField = document.getElementById('register-password').value;
+        event.preventDefault();
+        
+        if(registerNameField.trim() === "" || registerPasswordField.trim() === "")
+        {
+            console.log("null")
+        }
+        else
+        {
+            const response = await fetch('/register-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ registerName: registerNameField, registerPassword: registerPasswordField })
+            });
+
+            const serverResponse = await response.text();
+            console.log(serverResponse);
+
+            if(response.ok)
+            {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.form').forEach(form => form.classList.remove('active'));
+                document.getElementById('progressPanel').style.display = 'block';
+                document.getElementById('taskListPanel').style.display = 'block';
+
+                document.getElementById('container').classList.add('logged-in')
+                document.getElementById('taskPanel').classList.add('active');
+                currentUser = serverResponse.userId;
+                console.log(currentUser);
+            }
+            else
+            {
+                console.log(serverResponse);
+                changeErrorText(serverResponse);
+            }
+        }
+    }
+
+    async function SendTask() {
+        event.preventDefault();
+        const func = document.getElementById('func-input').value;
+        const rangeStart = document.getElementById('start-range').value;
+        const rangeEnd = document.getElementById('end-range').value;
+        const stepInput = document.getElementById('step').value;
+
+        
+        if (rangeStart < -100 || rangeStart > 100) {
+            alert('Початок відрізку має бути в межах від -100 до 100.');
+            return false;
+        }
+
+        if (rangeEnd < -100 || rangeEnd > 100) {
+            alert('Кінець відрізку має бути в межах від -100 до 100.');
+            return false;
+        }
+
+        if (stepInput <= 0 || stepInput > Math.abs(rangeStart - rangeEnd)) {
+            alert('Крок обчислення має бути більше 0 і не перевищувати довжину відрізку.');
+            return false;
+        }
+
+
+        if (func.trim() === "" || rangeStart === "" || rangeEnd === "" || stepInput === "") {
+            console.log("Error");
+        }
+        else {
+            // Відправляємо запит до головного сервера через WebSocket
+            const taskData = {
+                userId: currentUser,
+                functionInput: func.trim(),
+                startInput: rangeStart,
+                endInput: rangeEnd,
+                step: stepInput
+            };
+            socket.send(JSON.stringify({ type: 'taskRequest', taskData }));
+        }
+    }
+
+    let taskIndex = 1;
+
+    function addTaskToList(func, start, end, step, result) 
+    {
+        const taskList = document.getElementById('taskList');
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <strong>Завдання ${taskIndex++}</strong><br>
+            Формула: ${func}<br>
+            Початок відрізку: ${start}<br>
+            Кінець відрізку: ${end}<br>
+            Крок: ${step}<br>
+            Результат: ${result}
+        `;
+        taskList.appendChild(li);
+    }
+
+    async function updateList()
+    {
+        taskIndex = 1;
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = '';
+        const response = await fetch('/update-task-list',{
+            method:'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({userId: currentUser})
+        });
+        if (response.ok) {
+            const data = await response.json();
+            data.forEach((task,index)=>{
+                const {user_id, task_data} = task;
+                const {functionData, start, end, step, result} = task_data;
+                addTaskToList(functionData, start, end, step, result);
+            });
+        }
+    }
+
+    function updateProgress(value) 
+    {
+        const progressBar = document.getElementById('progressBar');
+        const progressStatus = document.getElementById('progressStatus');
+        progressBar.value = value;
+        progressStatus.innerText = `Прогрес: ${value}%`;
+    }
+
+    function changeErrorText(message) {
+        var paragraph = document.getElementById("error-messege");
+        paragraph.innerText = message;
+    }
+
+    function stopTask() {
+        if (currentUser !== 0) {
+            socket.send(JSON.stringify({
+                type: 'taskControl',
+                action: 'stop',
+                userId: currentUser
+            }));
+            console.log('Task stopped');
+        } else {
+            console.log('No user or task associated');
+        }
+    }
+
+    function resumeTask() {
+        if (currentUser !== 0) {
+            socket.send(JSON.stringify({
+                type: 'taskControl',
+                action: 'resume',
+                userId: currentUser
+            }));
+            console.log('Task resumed');
+        } else {
+            console.log('No user or task associated');
+        }
+    }
+
+    function abortTask() {
+        if (currentUser !== 0) {
+            socket.send(JSON.stringify({
+                type: 'taskControl',
+                action: 'abort',
+                userId: currentUser
+            }));
+            console.log('Task aborted');
+        } else {
+            console.log('No user or task associated');
+        }
+    }
+
 </script>
 
 </body>

@@ -94,48 +94,6 @@ function calculateArea(func, start, end, step, ws) {
     });
 }
 
-// app.post('/calculate-area',async (req, res) => {
-//     let {userId, functionInput, startInput, endInput, step } = req.body;
-
-//     startInput = parseFloat(startInput);
-//     endInput = parseFloat(endInput);
-//     step = parseFloat(step);
-
-//     if (!functionInput || isNaN(startInput) || isNaN(endInput) || isNaN(step)) {
-//         return res.status(400).json({ error: "Відсутні необхідні параметри або невірний формат" });
-//     }
-
-//     try {
-//         const area = calculateArea(functionInput, startInput, endInput, step);
-//         console.log(area);
-//         res.status(201).json({ message: 'success', result: area });
-
-//         const taskJson = JSON.stringify({functionData: functionInput,start: startInput, end: endInput, step: step, result: area});
-
-//         try {
-//             // Вставка даних у базу даних
-//             const result = await pool.query(
-//                 'INSERT INTO tasks (user_id, task_data) VALUES ($1, $2)',
-//                 [userId,taskJson]
-//             );
-//         } 
-//         catch (err) 
-//         {
-//             console.error('Error inserting task:', err);
-//             res.status(500).send('Server error');
-//         }
-
-//     } catch (error) {
-//         console.log(error)
-//         res.status(500).json({ error: "Помилка обчислення: перевірте правильність функції" });
-//     }
-// });
-
-
-// Запускаємо HTTPS-сервер
-
- // Робочий сервер
-
 wss.on('connection', (ws) => {
     console.log('Worker server connected');
 

@@ -28,24 +28,70 @@ const httpsAgent = new https.Agent({
 const server = https.createServer(options, app);
 const wss = new WebSocket.Server({ server , agent: httpsAgent});
 
+let isPaused = false;
+let isCancelled = false;
 
-// Маршрут для отримання завдання на обчислення
 
+function pause() {
+    isPaused = true;
+}
+
+function resume() {
+    isPaused = false;
+}
+
+function cancelTask() {
+    isCancelled = true;
+}
+ 
 function calculateArea(func, start, end, step, ws) {
     let area = 0;
     let progress = 0;
+    let currentX = start;
 
-    // Обчислення значення на кожному кроці
-    for (let x = start; x < end; x += step) {
-        const y = eval(func.replace(/x/g, x)); // Виконання функції
+    // Функція для обчислення одного кроку
+    function computeStep() {
+        // Якщо завдання скасовано, припиняємо
+        if (isCancelled) {
+            console.log("Task cancelled");
+            ws.send(JSON.stringify({ type: 'taskCancelled' }));
+            return;
+        }
+
+        // Якщо завдання на паузі, ставимо таймер для повторної перевірки через 100 мс
+        if (isPaused) {
+            console.log('Task paused');
+            setTimeout(computeStep, 100); // Перевірка кожні 100 мс
+            return;
+        }
+
+        // Обчислюємо значення для поточного кроку
+        const y = eval(func.replace(/x/g, currentX)); // Виконання функції
         area += y * step;
 
         // Оновлення прогресу
-        progress = ((x - start) / (end - start)) * 100;
+        progress = ((currentX - start) / (end - start)) * 100;
         ws.send(JSON.stringify({ type: 'progress', progress: Math.round(progress) }));
+
+        // Оновлюємо значення для наступного кроку
+        currentX += step;
+
+        // Якщо досягли кінця, завершуємо
+        if (currentX < end) {
+            setTimeout(computeStep, 0);
+        } else {
+            // Коли обчислення завершено, відправляємо результат та прогрес
+            ws.send(JSON.stringify({ type: 'taskComplete', funcRes: func, startRes:start, endRes: end, stepRes: step, result: area, progress: 100 }));
+
+            // Повертаємо результат через проміс, щоб обробити його в основній функції
+            return area;
+        }
     }
-    ws.send(JSON.stringify({ type: 'taskComplete', result: area }));
-    return area;
+
+    // Запуск обчислень
+    return new Promise((resolve) => {
+        resolve(computeStep());
+    });
 }
 
 wss.on('connection', (ws) => {
@@ -66,30 +112,31 @@ wss.on('connection', (ws) => {
             }
 
             try {
-                const area = calculateArea(functionInput, startInput, endInput, step, ws);
-
-                try {
-                    // Вставка даних у базу даних
-                    const taskJson = JSON.stringify({functionData: functionInput,start: startInput, end: endInput, step: step, result: area});
-                    const result = await pool.query(
-                    'INSERT INTO tasks (user_id, task_data) VALUES ($1, $2)',
-                    [userId,taskJson]
-                    );
+                const area = await calculateArea(functionInput, startInput, endInput, step, ws);
+                console.log(isCancelled);
+                if(isCancelled === true){
+                    console.log('abort')
+                    ws.send(JSON.stringify({ error: 'Abort' }));
                 } 
-                catch (err) 
-                {
-                    console.error('Error inserting task:', err);
-                    res.status(500).send('Server error');
-                }
-
             } catch (error) {
                 console.error('Calculation error:', error);
                 ws.send(JSON.stringify({ error: 'Error in calculation' }));
             }
         }
+        else{
+            if(data.action === 'stop'){
+                pause();
+            }
+            if(data.action === 'resume'){
+                resume();
+            }
+            if(data.action === 'abort'){
+                cancelTask();
+            }
+        }
     });
 });
 
-server.listen(3002, () => {
-    console.log(`Сервер запущено на https://localhost:3002`);
+server.listen(3001, () => {
+    console.log(`Сервер запущено на https://localhost:3001`);
 });
